@@ -1,5 +1,14 @@
 # POV Library
-Arduino library for Persistence of Vision (POV) projects.
+Arduino library for Persistence of Vision (POV) projects on ESP32-based MCUs
+This is a fork of my own pov-librbary (https://github.com/shurik179/pov-library) with the following changes:
+
+* uses LittleFS filesystem instead of FatFS
+
+* uses Adafruit's DotStar library instead of FastLED (variety of reasons, including problems with hardware SPI support)
+
+This is currently in early stages of development, not ready for public use. 
+
+Below is description of original library. 
 
 
 This library is for creating Persistence of Vision displays using NeoPixel (WS2812B)
