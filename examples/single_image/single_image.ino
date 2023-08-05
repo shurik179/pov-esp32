@@ -4,10 +4,7 @@
  * Distributed under the terms of MIT license; see LICENSE file in the repository for details.
  *
  *  Requires the following libraries:
- *  FastLED
- *  Adafruit_TinyUSB
- *  Adafruit_SPIFlash
- *  Sd_Fat (adafruit fork)
+ *  Adafruit_Dotstar
  *
  *
  * This is a simple test of the POV library. It functions as follows:
@@ -21,75 +18,53 @@
  *
  *
  * Before uploading the sketch to the staff, make sure to change the #define'd values to match your setup:
- *  NUM_PIXELS, LED_TYPE, COLOR_ORDER, PIN_MODE_SELECT, LINES_PER_SEC, IMAGE
- *  Also, for M4 and RP2040 based boards, make sure that in your Arduino IDE you have selected
- *  Tools->USB stack: TinyUSB
- *  Finally it is assumed that you have already created the FAT filesystem on your
- *  flash memory, using SdFat_format example sketch from Sd_Fat library (Adafruit fork)
+ *  NUM_PIXELS,  LINES_PER_SEC, IMAGE
+ *  Finally it is assumed that you have already created the LittleFS filesystem on your
+ *  flash memory, and uploaded the file with name IMAGE to the root directory
  */
-#include <FastLED.h>
+#include <LittleFS.h>
 #include <pov.h>
 //number of pixels in your strip/wand
 #define NUM_PIXELS 30
-// Strip type. Common options are DOTSTAR (APA102, SK9822) and NEOPIXEL (WS2812B, SK6812 and
-// compatible). For other options, see FastLED documentation
-#define LED_TYPE DOTSTAR
-// color order. For DOTSTAR (APA102), common order is BGR
-// For NeoPixel (WS2812B), most common is  GRB
-#define COLOR_ORDER BGR
-
-/*Mode selection pin
-  If at startup this pin is pulled low, staff goes into image upload mode;
-  otherwise, it goes into usual (show)  mode
-*/
-#define PIN_MODE_SELECT 5
 
 // frame rate
 #define LINES_PER_SEC 150.0f
 uint32_t interval=1000000/LINES_PER_SEC; //interval between lines of image, in microseconds
+//File name.
+//Note that we need to include leading slash
+#define IMAGE "/rg-lines.bmp"
 
-#define IMAGE "rg-lines.bmp"
+//Data and clock pins -  if NOT  using hardware SPI, change values as needed and uncomment
+// #define DATAPIN 2
+// #define CLOCKPIN 3
 
 
 /* Global Variables */
-CRGB leds[NUM_PIXELS];
-POV staff(NUM_PIXELS, leds);
+
+POV staff(NUM_PIXELS);
+//if NOT using SPI, use this instead
+// POV staff(NUM_PIXELS, DATAPIN, CLOCKPIN)
 
 
 
 
 
 void setup(){
-// If using hardware SPI, use this version
-    FastLED.addLeds<LED_TYPE, COLOR_ORDER>(leds, NUM_PIXELS);
-//If NOT using hardware SPI, comment the previous line. Instead,
-// use one of the versions below,
-// replacing DATA_PIN and CLOCK_PIN by correct pin numbers
-// FastLED.addLeds<DOTSTAR, DATA_PIN, CLOCK_PIN, COLOR_ORDER>(leds, NUM_PIXELS);
-// FastLED.addLeds<NEOPIXEL, DATA_PIN, COLOR_ORDER>(leds, NUM_PIXELS);
-
-    pinMode(PIN_MODE_SELECT, INPUT_PULLUP);
-
-    //if pin is pulled low, go into upload mode!
-    //note: in this case, there should be no Serial.begin() before this, and no delay()
-    if (digitalRead(PIN_MODE_SELECT)==LOW) {
-        staff.begin(MODE_UPLOAD);
-        //do nothing else, do not run loop() -- just let TinyUSB do its job
-        while (1) yield();
-
-    } else {
-        //otherwise, regular show
-        staff.begin(MODE_SHOW);
-        // blink to indicate that staff is alive and working.
-        // You can use any of predefined CRGB colors: https://github.com/FastLED/FastLED/wiki/Pixel-reference#predefined-colors-list
-        // You can also omit the color; in this case, it will default to red.
-        staff.blink(CRGB::Red);
-        staff.addImage(IMAGE);
+    Serial.begin(9600);
+    // Open LittleFS file system on the flash
+    if ( !LittleFS.begin(false) ) {
+        Serial.println("Error: filesystem doesn't not exist. Please format LittleFS filesystem");
+        while(1) yield();
     }
-
-
+    //check if  file exists
+    if (! LittleFS.exists(IMAGE)) {
+        Serial.println("Error: file doesn't exist");
+        while(1) yield();
+    }
+    staff.begin();
+    staff.blink();
+    staff.addImage(IMAGE);
 }
-//note that loop() will only run in MODE_SHOW
 void loop(){
     if (staff.timeSinceUpdate()>interval) {
         staff.showNextLine();

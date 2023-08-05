@@ -1,40 +1,44 @@
 #include "pov.h"
 
-POV::POV(uint16_t n, CRGB * l)
+POV::POV(uint16_t n,  uint8_t datapin, uint8_t clockpin )
     :numPixels(n), paused(false) {
-        leds=l;
+        if (datapin == 255) {
+          strip = new Adafruit_DotStar(n, DOTSTAR_BRG);
+        } else {
+          strip = new Adafruit_DotStar(n,datapin, clockpin, DOTSTAR_BRG);
+        }
     }
 
-void POV::begin(uint8_t mode){
+void POV::begin(){
     //Serial.println("Starting...")
-    _mode=mode;
 
-    //init external flash
-    flash.begin();
-    // Open file system on the flash
-    if ( !fatfs.begin(&flash) ) {
-        Serial.begin(9600);
-        Serial.println("Error: filesystem doesn't not exist. Please try SdFat_format example to make one.");
-        while(1) yield();
-    }
-    if (_mode==MODE_UPLOAD) {
-        msc_init();
-        Serial.begin(9600);
-        delay(1000);
-        Serial.println("Mass storage device started ");
-        Serial.print("JEDEC ID: "); Serial.println(flash.getJEDECID(), HEX);
-        Serial.print("Flash size: "); Serial.println(flash.size());
-    } else {
-        FastLED.setCorrection( TypicalSMD5050 );
-    }
-    FastLED.show();
+    strip->begin();
+    strip->setBrightness(127);
+    strip->show();
 }
 
+void POV::blank(){
+    strip->clear();
+    strip->show();
+}
+
+void POV::setBrightness(uint8_t b){
+    strip->setBrightness(b);
+}
+
+void POV::setPixel(uint16_t i, uint32_t c){
+    strip->setPixelColor(i,c);
+}
+
+void POV::show(){
+    strip->show();
+    lastLineUpdate=micros();
+}
+//FIXME
 void POV::showValue(float v){
     uint16_t level=0;
-    uint8_t i, value;
-    uint32_t c;
-    FastLED.clear();
+    uint8_t i, delta;
+    strip->clear();
     if (v<0.0) {
       v=0.0;
     } else if (v>1.0) {
@@ -42,35 +46,21 @@ void POV::showValue(float v){
     }
     level = v*numPixels;
     if (level>numPixels) level=numPixels;
-    //do gradient fill of the hole leds array
-    fill_gradient_RGB(leds, numPixels, CRGB::Red, CRGB::Green);
-    //now, black out everything above level
-    if (level<numPixels){
-        fill_solid(&(leds[level]), numPixels-level, CRGB::Black );
+    //do gradient fill of the strip
+    float step=250.0/numPixels;
+    for (i=0; i<level; i++){
+        delta = i*step;
+        strip->setPixelColor(i, 255-delta, delta, 0);
     }
-    FastLED.show();
+
+    strip->show();
     lastLineUpdate=micros();
 }
 
-void POV::blank(){
-    FastLED.clear(true);
-    FastLED.show();
-}
 
 
 
-void POV::show(){
-    FastLED.show();
-    lastLineUpdate=micros();
-}
 
-void POV::setBrightness(uint8_t b){
-    FastLED.setBrightness(b);
-}
-
-void POV::setPixel(uint16_t i, uint32_t c){
-    leds[i]=c;
-}
 
 void POV::showLine(byte * line, uint16_t size){
     uint16_t i,pos;
@@ -82,29 +72,31 @@ void POV::showLine(byte * line, uint16_t size){
             b=line[pos++];
             g=line[pos++];
             r=line[pos];
-            leds[i].setRGB(r,g,b);
+            strip->setPixelColor(i,r,g,b);
         } else {
-           leds[i]=0x00;
+           strip->setPixelColor(i,0x00);
         }
     }
-    FastLED.show();
+    strip->show();
     lastLineUpdate=micros();
 }
 
-void POV::blink(CRGB color){
+void POV::blink(uint32_t color){
     uint16_t i;
 
     //repeat twice
     for (uint8_t j=0; j<2; j++){
-        FastLED.clear(true);
+        strip->clear();
+        strip->show();
         delay(500);
         for(i=0; 8*i<numPixels; i++) {
-            leds[8*i]=color;
+            strip->setPixelColor(i,color);
         }
-        FastLED.show();
+        strip->show();
         delay(500);
     }
-    FastLED.clear(true);
+    strip->clear();
+    strip->show();
 }
 
 void POV::addImage(char * filename, uint16_t duration){

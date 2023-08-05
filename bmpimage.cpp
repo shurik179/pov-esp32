@@ -6,7 +6,7 @@ bool BMPimage::init(char * fn) {
     File bmpFile;
     int bmpDepth;
     //first, check if filename exists
-    if ((bmpFile = fatfs.open(fn)) == NULL) {
+    if ((bmpFile = LittleFS.open(fn)) == NULL) {
         Serial.print(F("BMPimage init: failed to open file ")); Serial.println(fn);
         _valid=false;
         return false;
@@ -103,7 +103,7 @@ bool BMPimage::load(){
     */
 
     File bmpFile;
-    if ((bmpFile = fatfs.open(filename)) == NULL) {
+    if ((bmpFile = LittleFS.open(filename)) == NULL) {
         Serial.print(F("BMPimage load: failed to open file ")); Serial.println(filename);
         return false;
     }
@@ -204,7 +204,7 @@ int BMPimageList::addFromFile(char * fn){
     char * duration_ptr;
     int16_t duration;
     int i;
-    if ((f = fatfs.open(fn)) == NULL) {
+    if ((f = LittleFS.open(fn)) == NULL) {
         //failed to open file
         Serial.print("BMPimageList::addFromFile: failed to open file "); Serial.println(fn);
         return 0;

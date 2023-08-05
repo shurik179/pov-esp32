@@ -2,22 +2,19 @@
 #define _STAFF_H
 #include <Arduino.h>
 #include <SPI.h>
-#include <FastLED.h>
+#include <Adafruit_DotStar.h>
 #include "config.h"
-#include "flashstorage.h"
+#include "fileread.h"
 #include "bmpimage.h"
 
 
 class POV {
     public:
-        CRGB * leds;
         bool paused;
 
-        POV(uint16_t length, CRGB * l);
-        void begin(uint8_t mode);
+        POV(uint16_t length, uint8_t DATAPIN = 255, uint8_t CLOCKPIN = 255);
+        void begin();
 
-
-        uint8_t mode() {return _mode;}
 
         void setPixel(uint16_t i, uint32_t c);
         void blank();
@@ -25,7 +22,7 @@ class POV {
         void setBrightness(uint8_t b);
 
         /* quickly blink each 8th LED red, for "I am alive" indication */
-        void blink(CRGB color=CRGB::Red);
+        void blink(uint32_t color=0xFF0000);
 
         /* shows a value (0 -1.0) using LED staff as bar graph */
         void showValue(float v);
@@ -71,11 +68,11 @@ class POV {
 
 
     private:
+        Adafruit_DotStar * strip;
         uint16_t numPixels;
         BMPimageList  imageList;
         int16_t currentLine=0;     //next line to be shown
         uint32_t lastLineUpdate=0; //time in microseconds
-        uint8_t _mode = MODE_SHOW;
 
 };
 

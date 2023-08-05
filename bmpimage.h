@@ -1,8 +1,7 @@
 #ifndef _BMPIMAGE_H
 #define _BMPIMAGE_H
 #include <Arduino.h>
-#include "flashstorage.h" //all definitions related to flash storage incldued on the board.
-                          //in particular, defines filesystem fatfs, where all the files are located
+#include "fileread.h" //all definitions related to file operations
 
 #include "config.h"
 
@@ -75,7 +74,7 @@ class BMPimageList {
          * The file must have one filename per line
          * Maximal length of a filename is MAX_FILENAME (defined  in config.h)
          * returns number of added files
-         * after adding, the last added file is current 
+         * after adding, the last added file is current
          */
         int addFromFile(char * fn);
 
