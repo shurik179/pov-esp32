@@ -53,7 +53,8 @@ class BMPimageList {
         uint16_t count()     {return _numImages;}
         /* pointer to current image in list. If list is empty, returns NULL */
         BMPimage * current();
-        /* duration for current image, in seconds */
+        /* duration for current image, in seconds. If no duration was specified in file,
+           returns durantion =0   */
         uint16_t currentDuration();
         /* moves pointer to next image in the list and returns the pointer.
            If list is empty, returns NULL

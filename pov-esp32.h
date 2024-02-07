@@ -1,5 +1,5 @@
-#ifndef _STAFF_H
-#define _STAFF_H
+#ifndef _POVESP32_H
+#define _POVESP32_H
 #include <Arduino.h>
 #include <SPI.h>
 #include <Adafruit_DotStar.h>
@@ -14,8 +14,6 @@ class POV {
 
         POV(uint16_t length, uint8_t DATAPIN = 255, uint8_t CLOCKPIN = 255);
         void begin();
-
-
         void setPixel(uint16_t i, uint32_t c);
         void blank();
         void show();
@@ -75,7 +73,5 @@ class POV {
         uint32_t lastLineUpdate=0; //time in microseconds
 
 };
-
-
 
 #endif

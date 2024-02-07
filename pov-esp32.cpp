@@ -1,11 +1,11 @@
-#include "pov.h"
+#include "pov-esp32.h"
 
 POV::POV(uint16_t n,  uint8_t datapin, uint8_t clockpin )
     :numPixels(n), paused(false) {
         if (datapin == 255) {
-          strip = new Adafruit_DotStar(n, DOTSTAR_BRG);
+          strip = new Adafruit_DotStar(n, DOTSTAR_BGR);
         } else {
-          strip = new Adafruit_DotStar(n,datapin, clockpin, DOTSTAR_BRG);
+          strip = new Adafruit_DotStar(n,datapin, clockpin, DOTSTAR_BGR);
         }
     }
 
@@ -90,7 +90,7 @@ void POV::blink(uint32_t color){
         strip->show();
         delay(500);
         for(i=0; 8*i<numPixels; i++) {
-            strip->setPixelColor(i,color);
+            strip->setPixelColor(8*i,color);
         }
         strip->show();
         delay(500);

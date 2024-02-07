@@ -1,106 +1,105 @@
 /*
- * This file is part of POV library   by Alexander Kirillov <shurik179@gmail.com>
- * See github.com/shurik179/pov-library for details
+ * This file is part of POV-ESP32 library by Alexander Kirillov <shurik179@gmail.com>
+ * See github.com/shurik179/pov-esp32 for details
  * Distributed under the terms of MIT license; see LICENSE file in the repository for details.
  *
  *  Requires the following libraries:
- *  FastLED
- *  Adafruit_TinyUSB
- *  Adafruit_SPIFlash
- *  Sd_Fat (adafruit fork)
+ *  Adafruit_Dotstar
  *
  *
- * This is a multiimage test of the POV library. It functions as follows:
- *  - if at startup pin PIN_MODE_SELECT (defined below) is pulled low, it puts the staff in
- *    image upload mode; if the staff is connected to the computer by USB cable, it appears
- *    as an external drive so you can drag and drop your BMP images to it
  *
- *  - otherwise, the staff goes into usual show mode.  It reads the imagelist file
- *    at the root of file system and starts showing images from that list
- *    showing each image for the duration written in the imagelist file
+ * This is a multiimage test of the POV-ESP32  library. It reads the imagelist file
+ * at the root of file system and starts showing images from that list
+ * showing each image for the duration written in the imagelist file.
+ * Imagelist file should be in the following format: one line per image file,
+ * containing fiename (up to 30 symbols), including extension, optionally
+ * followed by number of seconds (whole numbers only). E.g.
+ * /filename1.bmp   20
+ * /filename2.bmp   30
+ * /filename1.bmp
+ * IMPORTANT: filenames should include leading slash !!
+ * Each image will be shown for specified number of seconds. If number of seonds
+ * it will be shown indefinoitley
  *    The frame rate (i.e. how many lines to show per second) is determined
  *    by value of LINES_PER_SEC below
  *
  *
- * Before uploading the sketch to the staff, make sure to change the #define'd values to match your setup:
- *  NUM_PIXELS, LED_TYPE, COLOR_ORDER, PIN_MODE_SELECT, LINES_PER_SEC, IMAGELIST
- *  Also, for M4 and RP2040 based boards, make sure that in your Arduino IDE you have selected
- *  Tools->USB stack: TinyUSB
- *  Finally it is assumed that you have already created the FAT filesystem on your
- *  flash memory, using SdFat_format example sketch from Sd_Fat library (Adafruit fork)
- *
+ * Before uploading the sketch to the staff, make sure to change the #define'd
+ * values to match your setup:
+ *  NUM_PIXELS,  LINES_PER_SEC, IMAGELIST
+ *  Finally it is assumed that you have already created the LittleFS filesystem on your
+ *  flash memory, and uploaded the file with name IMAGE to the root directory
  */
-#include <FastLED.h>
-#include <pov.h>
+
+
+#include <LittleFS.h>
+#include <pov-esp32.h>
+
 //number of pixels in your strip/wand
 #define NUM_PIXELS 30
-// Strip type. Common options are DOTSTAR (APA102, SK9822) and NEOPIXEL (WS2812B, SK6812 and
-// compatible). For other options, see FastLED documentation
-#define LED_TYPE DOTSTAR
-// color order. For DOTSTAR (APA102), common order is BGR
-// For NeoPixel (WS2812B), most common is  GRB
-#define COLOR_ORDER BGR
-
-/*Mode selection pin
-  If at startup this pin is pulled low, staff goes into image upload mode;
-  otherwise, it goes into usual (show)  mode
-*/
-#define PIN_MODE_SELECT 5
-
 // frame rate
 #define LINES_PER_SEC 150.0f
 uint32_t interval=1000000/LINES_PER_SEC; //interval between lines of image, in microseconds
 
-#define IMAGELIST "imagelist.txt"
+// name of image list file. Not that we need to include the leading slash
+#define IMAGELIST "/imagelist.txt"
+
+//Data and clock pins -  if NOT  using hardware SPI, change values as needed and uncomment
+// #define DATAPIN 2
+// #define CLOCKPIN 3
 
 
 /* Global Variables */
-CRGB leds[NUM_PIXELS];
-POV staff(NUM_PIXELS, leds);
-uint32_t nextImageChange=0; //in milliseconds
 
-
-
+POV staff(NUM_PIXELS);
+//if NOT using SPI, use this instead
+// POV staff(NUM_PIXELS, DATAPIN, CLOCKPIN)
+uint32_t nextImageChange=0;
 
 void setup(){
-// If using hardware SPI, use this version
-    FastLED.addLeds<LED_TYPE, COLOR_ORDER>(leds, NUM_PIXELS);
-//If NOT using hardware SPI, comment the previous line. Instead,
-// use one of the versions below,
-// replacing DATA_PIN and CLOCK_PIN by correct pin numbers
-// FastLED.addLeds<DOTSTAR, DATA_PIN, CLOCK_PIN, COLOR_ORDER>(leds, NUM_PIXELS);
-// FastLED.addLeds<NEOPIXEL, DATA_PIN, COLOR_ORDER>(leds, NUM_PIXELS);
+    Serial.begin(9600);
+    //initilaize staff
+    staff.begin();
+    staff.blink(0x0000FF); //blink blue
+    // Open LittleFS file system on the flash
+    if ( !LittleFS.begin(false) ) {
+        Serial.println("Error: filesystem doesn't not exist. Please format LittleFS filesystem");
+        while(1) {
+            staff.blink();//blink red
+        }
+    }
+    //check if  file exists
+    if (! LittleFS.exists(IMAGELIST)) {
+        Serial.println("Error: file doesn't exist");
+        while(1) {
+            staff.blink(0x8000FF); //blink purple
+        }
+    }
+    // if everything is OK, let's add image from imagelist file to POV staff
+    staff.addImageList(IMAGELIST);
+    Serial.println("imagelist added");
+    staff.blink(0x00FF00); //blink green
 
-    pinMode(PIN_MODE_SELECT, INPUT_PULLUP);
-
-    //if pin is pulled low, go into upload mode!
-    //note: in this case, there should be no Serial.begin() before this, and no delay()
-    if (digitalRead(PIN_MODE_SELECT)==LOW) {
-        staff.begin(MODE_UPLOAD);
-        //do nothing else, do not run loop() -- just let TinyUSB do its job
-        while (1) yield();
+    //determine first image change time
+    if (staff.currentDuration() == 0) {
+        //this happens when no duration was specified in image list file
+        nextImageChange = ULONG_MAX; //maximal possible unsigned 32-bit int
     } else {
-        //otherwise, regular show
-        staff.begin(MODE_SHOW);
-        // blink to indicate that staff is alive and working.
-        // You can use any of predefined CRGB colors: https://github.com/FastLED/FastLED/wiki/Pixel-reference#predefined-colors-list
-        // You can also omit the color; in this case, it will default to red.
-        staff.blink(CRGB::Red);
-        //read the image list
-        staff.addImageList(IMAGELIST);
-        //determine when we will need to change the image
         nextImageChange=millis()+staff.currentDuration()*1000;
     }
-
-
 }
 
 void loop(){
     if (millis()>nextImageChange){
         //time to switch to next image
         staff.nextImage();
-        //determine when we will need to change the image
-        nextImageChange=millis()+staff.currentDuration()*1000;
+        Serial.println("New image");
+        //determine when we will need to change the image again 
+        if (staff.currentDuration() == 0) {
+            nextImageChange = ULONG_MAX; //maximal possible unsigned 32-bit int
+        } else {
+            nextImageChange=millis()+staff.currentDuration()*1000;
+        }
     }
     //check if it time to show next line
     if (staff.timeSinceUpdate()>interval) {
