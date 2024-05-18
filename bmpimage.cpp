@@ -91,7 +91,7 @@ void BMPimage::getFilename(char * fn){
 bool BMPimage::load(){
     //now is the time to read actual data into buffer.
     // first, let us make sure it is large enough, to avoid buffer overflow
-    uint16_t size= _rowSize * _height;
+    uint32_t size= _rowSize * _height;
     //Serial.print("Required buffer size (bytes)"); Serial.println(size);
     if (BUF_SIZE < size ){
         Serial.print(F("BMPimage load: file too largefor buffer of size "));Serial.println(BUF_SIZE);
